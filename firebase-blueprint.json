@@ -1,0 +1,100 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and stats",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "email": { "type": "string" },
+        "kwaiGolds": { "type": "number" },
+        "followersCount": { "type": "number" },
+        "followingCount": { "type": "number" },
+        "bio": { "type": "string" },
+        "streak": { "type": "number" },
+        "lastVisit": { "type": "string" }
+      },
+      "required": ["uid", "displayName"]
+    },
+    "Video": {
+      "title": "Video",
+      "description": "Video metadata",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "url": { "type": "string" },
+        "user": { "type": "string" },
+        "userPhoto": { "type": "string" },
+        "description": { "type": "string" },
+        "likes": { "type": "number" },
+        "comments": { "type": "number" },
+        "bookmarks": { "type": "number" },
+        "shares": { "type": "number" },
+        "music": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "url", "user"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "Comment on a video",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "videoId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhoto": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "videoId", "userId", "text"]
+    },
+    "Follow": {
+      "title": "Follow",
+      "description": "Follow relationship",
+      "type": "object",
+      "properties": {
+        "followerId": { "type": "string" },
+        "followingId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["followerId", "followingId"]
+    },
+    "Like": {
+      "title": "Like",
+      "description": "Like relationship",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "videoId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "videoId"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/videos/{videoId}": {
+      "schema": "Video",
+      "description": "Video metadata"
+    },
+    "/videos/{videoId}/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Comments on videos"
+    },
+    "/follows/{followId}": {
+      "schema": "Follow",
+      "description": "Follow relationships"
+    },
+    "/likes/{likeId}": {
+      "schema": "Like",
+      "description": "Like relationships"
+    }
+  }
+}

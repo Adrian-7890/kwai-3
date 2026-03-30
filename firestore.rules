@@ -1,0 +1,211 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: uid
+    // Fields:
+    //   - uid: string (required)
+    //   - displayName: string (required)
+    //   - username: string
+    //   - photoURL: string
+    //   - email: string
+    //   - kwaiGolds: number
+    //   - followersCount: number
+    //   - followingCount: number
+    //   - bio: string
+    //   - streak: number
+    //   - lastVisit: string
+    //   - role: string
+    //
+    // Collection: videos
+    // Document ID: videoId
+    // Fields:
+    //   - id: string (required)
+    //   - url: string (required)
+    //   - user: string (required)
+    //   - userPhoto: string
+    //   - description: string
+    //   - likes: number
+    //   - comments: number
+    //   - bookmarks: number
+    //   - shares: number
+    //   - music: string
+    //   - effect: string
+    //   - filter: string
+    //   - authorId: string
+    //   - createdAt: timestamp
+    //
+    // Collection: videos/{videoId}/comments
+    // Document ID: commentId
+    // Fields:
+    //   - videoId: string (required)
+    //   - userId: string (required)
+    //   - userName: string
+    //   - userPhoto: string
+    //   - text: string (required)
+    //   - createdAt: timestamp
+    //   - likes: number
+    //   - likedBy: list
+    //
+    // Collection: follows
+    // Document ID: followerId_followingId
+    // Fields:
+    //   - followerId: string (required)
+    //   - followingId: string (required)
+    //   - createdAt: timestamp
+    //
+    // Collection: likes
+    // Document ID: userId_videoId
+    // Fields:
+    //   - userId: string (required)
+    //   - videoId: string (required)
+    //   - createdAt: timestamp
+    //
+    // Collection: messages
+    // Document ID: auto-generated
+    // Fields:
+    //   - senderId: string (required)
+    //   - receiverId: string (required)
+    //   - text: string (required)
+    //   - timestamp: timestamp
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "yabhel452962@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isRecent(time) {
+      return time is timestamp && time > request.time - duration.value(5, 'm') && time < request.time + duration.value(5, 'm');
+    }
+
+    function isValidUser(data) {
+      return data.uid is string && data.uid.size() > 0 &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() < 100 &&
+             (data.username == null || (data.username is string && data.username.size() < 100)) &&
+             (data.photoURL == null || (data.photoURL is string && data.photoURL.size() < 500)) &&
+             (data.email == null || (data.email is string && isValidEmail(data.email))) &&
+             (data.kwaiGolds == null || data.kwaiGolds is number) &&
+             (data.followersCount == null || data.followersCount is number) &&
+             (data.followingCount == null || data.followingCount is number) &&
+             (data.bio == null || (data.bio is string && data.bio.size() < 500)) &&
+             (data.streak == null || data.streak is number) &&
+             (data.lastVisit == null || data.lastVisit is string) &&
+             (data.updatedAt == null || data.updatedAt is timestamp) &&
+             (data.role == null || data.role is string);
+    }
+
+    function isValidVideo(data) {
+      return data.id is string && data.id.size() > 0 &&
+             data.url is string && data.url.size() > 0 && data.url.size() < 1000 &&
+             data.user is string && data.user.size() > 0 &&
+             (data.description == null || (data.description is string && data.description.size() < 2000)) &&
+             (data.likes is number) &&
+             (data.comments is number) &&
+             (data.bookmarks is number) &&
+             (data.shares is number) &&
+             (data.music == null || (data.music is string && data.music.size() < 500)) &&
+             (data.effect == null || data.effect is string) &&
+             (data.filter == null || data.filter is string) &&
+             (data.authorId == null || data.authorId is string) &&
+             (data.createdAt == null || data.createdAt is timestamp);
+    }
+
+    function isValidComment(data) {
+      return data.videoId is string && data.videoId.size() > 0 &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.text is string && data.text.size() > 0 && data.text.size() < 2000 &&
+             (data.userName == null || data.userName is string) &&
+             (data.userPhoto == null || data.userPhoto is string) &&
+             (data.likes is number) &&
+             (data.likedBy is list) &&
+             (data.createdAt == null || data.createdAt is timestamp);
+    }
+
+    function isValidFollow(data) {
+      return data.followerId is string && data.followerId == request.auth.uid &&
+             data.followingId is string && data.followingId.size() > 0 &&
+             (data.createdAt == null || data.createdAt is timestamp);
+    }
+
+    function isValidLike(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.videoId is string && data.videoId.size() > 0 &&
+             (data.createdAt == null || data.createdAt is timestamp);
+    }
+
+    function isValidMessage(data) {
+      return data.senderId is string && data.senderId == request.auth.uid &&
+             data.receiverId is string && data.receiverId.size() > 0 &&
+             data.text is string && data.text.size() > 0 && data.text.size() < 5000 &&
+             (data.timestamp == null || data.timestamp is timestamp);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{uid} {
+      // Allow reading other users for profiles, but be careful with PII
+      // In a real app, we would split this into public/private
+      allow read: if isAuthenticated(); 
+      allow create: if isOwner(uid) && isValidUser(request.resource.data);
+      allow update: if (isOwner(uid) && isValidUser(request.resource.data)) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /videos/{videoId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidVideo(request.resource.data);
+      allow update: if (isAuthenticated() && isValidVideo(request.resource.data)) || isAdmin();
+      allow delete: if isAdmin();
+
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isAuthenticated() && isValidComment(request.resource.data);
+        allow update: if isAuthenticated() && (isValidComment(request.resource.data) || isAdmin());
+        allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      }
+    }
+
+    match /follows/{followId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidFollow(request.resource.data);
+      allow delete: if isAuthenticated() && (resource.data.followerId == request.auth.uid || isAdmin());
+    }
+
+    match /likes/{likeId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidLike(request.resource.data);
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    match /messages/{messageId} {
+      // Permissive read for prototype, should be restricted to sender/receiver
+      allow read: if isAuthenticated(); 
+      allow create: if isAuthenticated() && isValidMessage(request.resource.data);
+      allow delete: if isAdmin();
+    }
+  }
+}
